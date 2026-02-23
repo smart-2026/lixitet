@@ -359,7 +359,7 @@
                         <div class="relative">
                             <input type="text" id="loginAccount"
                                 class="w-full p-3 pl-10 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-red-500 transition-all text-sm md:text-base"
-                                placeholder="Nhập STK" required>
+                                placeholder="Nhập STK" (không bắt buộc)>
                             <i class="fas fa-credit-card absolute left-3 top-3.5 text-gray-400"></i>
                         </div>
                     </div>
@@ -1801,6 +1801,32 @@
             setupSearchableDropdown('sessionSearchInput', 'loginSessionId', 'sessionDropdownList', sessions, 'name', 'id', null);
         }
 
+        // async function handlePlayerLogin(e) {
+        //     e.preventDefault();
+        //     const sessionId = document.getElementById('loginSessionId').value;
+        //     const pin = document.getElementById('loginPin').value;
+        //     const name = document.getElementById('loginName').value.trim();
+        //     const bank = document.getElementById('loginBank').value;
+        //     const accountNo = document.getElementById('loginAccount').value.trim();
+
+        //     if (!sessionId || !bank || !accountNo) { alert("Vui lòng điền đủ thông tin!"); return; }
+
+        //     const session = cachedSessions.find(s => s.id === sessionId);
+        //     if (!session) { alert("Đợt lì xì không hợp lệ"); return; }
+        //     if (session.pin && session.pin !== pin) { alert("Mã PIN không chính xác!"); return; }
+
+        //     const played = await checkHasPlayed(sessionId, accountNo);
+        //     if (played) { alert(`TK ${accountNo} đã tham gia quay số trong đợt này rồi. Mỗi người chỉ được quay 1 lần!`); return; }
+
+        //     currentSession = session;
+        //     const combinedAccount = `${bank}::${accountNo}`;
+        //     currentPlayer = { name, account: combinedAccount, displayAccount: `${bank} - ${accountNo}`, bankCode: bank, accountNo: accountNo };
+
+        //     isMoneyMode = true;
+        //     hasSpun = false; // Reset spin state
+        //     startGame();
+        // }
+
         async function handlePlayerLogin(e) {
             e.preventDefault();
             const sessionId = document.getElementById('loginSessionId').value;
@@ -1809,18 +1835,69 @@
             const bank = document.getElementById('loginBank').value;
             const accountNo = document.getElementById('loginAccount').value.trim();
 
-            if (!sessionId || !bank || !accountNo) { alert("Vui lòng điền đủ thông tin!"); return; }
+            // 1. Bắt buộc: phải chọn đợt + nhập tên + nhập PIN
+            if (!sessionId) {
+                alert("Vui lòng chọn đợt lì xì!");
+                return;
+            }
+            if (!name) {
+                alert("Vui lòng nhập Họ và Tên!");
+                return;
+            }
+            if (!pin) {
+                alert("Vui lòng nhập Mã PIN tham gia!");
+                return;
+            }
 
             const session = cachedSessions.find(s => s.id === sessionId);
-            if (!session) { alert("Đợt lì xì không hợp lệ"); return; }
-            if (session.pin && session.pin !== pin) { alert("Mã PIN không chính xác!"); return; }
+            if (!session) {
+                alert("Đợt lì xì không hợp lệ");
+                return;
+            }
+            if (session.pin && session.pin !== pin) {
+                alert("Mã PIN không chính xác!");
+                return;
+            }
 
-            const played = await checkHasPlayed(sessionId, accountNo);
-            if (played) { alert(`TK ${accountNo} đã tham gia quay số trong đợt này rồi. Mỗi người chỉ được quay 1 lần!`); return; }
+            // 2. Ngân hàng & STK: KHÔNG BẮT BUỘC
+            const hasBankInfo = bank && accountNo;
+
+            // Nếu có STK => vẫn kiểm tra "một tài khoản chỉ quay 1 lần"
+            if (hasBankInfo) {
+                const played = await checkHasPlayed(sessionId, accountNo);
+                if (played) {
+                    alert(`TK ${accountNo} đã tham gia quay số trong đợt này rồi. Mỗi người chỉ được quay 1 lần!`);
+                    return;
+                }
+            }
+
+            // 3. Gộp thông tin người chơi
+            let combinedAccount = "";
+            let displayAccount = "";
+            let bankCode = "";
+            let accountNumber = "";
+
+            if (hasBankInfo) {
+                combinedAccount = `${bank}::${accountNo}`;
+                displayAccount = `${bank} - ${accountNo}`;
+                bankCode = bank;
+                accountNumber = accountNo;
+            } else {
+                // Không cung cấp thông tin ngân hàng
+                combinedAccount = "";
+                displayAccount = "Chưa cung cấp";
+                bankCode = "";
+                accountNumber = "";
+            }
 
             currentSession = session;
-            const combinedAccount = `${bank}::${accountNo}`;
-            currentPlayer = { name, account: combinedAccount, displayAccount: `${bank} - ${accountNo}`, bankCode: bank, accountNo: accountNo };
+            currentPlayer = {
+                name,
+                account: combinedAccount,       // có thể rỗng nếu không nhập
+                displayAccount,                // hiển thị trên giao diện
+                bankCode,                      // dùng để tạo QR, có thể rỗng
+                accountNo: accountNumber
+            };
 
             isMoneyMode = true;
             hasSpun = false; // Reset spin state
